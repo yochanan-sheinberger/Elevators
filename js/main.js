@@ -9,7 +9,8 @@ var elevators = [
             right: $("#right-door-1")
         },
         missions: [],
-        closed: true
+        closed: true,
+        dest: 0
     },
     {
         DOM: $(".elevator-2"),
@@ -21,7 +22,7 @@ var elevators = [
             right: $("#right-door-2")
         },
         missions: [],
-        closed: true
+        closed: true,dest: 0
     },
     {
         DOM: $(".elevator-3"),
@@ -33,34 +34,15 @@ var elevators = [
             right: $("#right-door-3")
         },
         missions: [],
-        closed: true
+        closed: true,
+        dest: 0
     }
 ];
 
-var floors = [
-    true,
-    false,
-    false,
-    false
-];
-
 var elGaps = [];
-
-// function checkElevInFloor(btn, num) {
-//     // var f = 0;
-//     // for (let x = 0; x < 3; x++) {
-//     //     if (elevators[x].floor == num && elevators[x].busy == false) {
-//     //         send(btn, num, x, 0);
-
-//     //         break;
-//     //     } else {
-//     //         f++
-//     //     }
-//     // }
-//     // if (f == 3) {
-//         searchCloseElevator(btn, num);
-//     // }   
-// }
+var openMissions = [];
+var engineSound = document.getElementById("enginesound");
+var doorSound = document.getElementById("doorsound");
 
 function init(btn, num) {
     btn.disabled = true;
@@ -77,11 +59,11 @@ function searchCloseElevator(btn, num) {
             elevNum: i,
             gap: gap,
             busy: elevators[i].busy,
-            dir: elevators[i].dir
+            dir: elevators[i].dir,
             };
         elGaps.push(elGap) 
     })
-    sortElGaps(btn, num) 
+    sortElGaps() 
 }
 
 function calcGap(i, num) {
@@ -92,7 +74,7 @@ function calcGap(i, num) {
     return gap;
 }
 
-function sortElGaps(btn, num) {
+function sortElGaps() {
     elGaps.sort((a, b)=> {
         return a.gap - b.gap;
 
@@ -110,45 +92,61 @@ function checkIfAvailable(btn, num) {
         }
     }
     if (g == 3) {
-        constructMission(btn, num, chekDirection(btn, num))
+        let elev = chekDirection(btn, num);
+        if (elev != null) {
+            let mission = constructMission(btn, num, elev)
+            elevators[elev].missions.push(mission);
+        }
     } 
 }
 
 function chekDirection(btn, num) {
-    searchCloseElevator(btn, num);
     let g = 0;
     for (let z = 0; z < 3; z++) {
-        if (elGaps[z].dir == btn.id || elGaps[z].dir == "") {
+        let f = checkDir(btn, num, z)
+        if (elGaps[z].dir == btn.id && f == true) {
             return elGaps[z].elevNum;
         } else {
             g++
         }
     }
     if (g == 3) {
-        return elGaps[0].elevNum;
+        let mission = constructMission(btn, num, elGaps[0].elevNum)
+        openMissions.push(mission);
+    }
+}
+
+function checkDir(btn, num, z) {
+    if (btn.id == "up" && num > elevators[z].dest) {
+        return true;
+    } else if (btn.id == "down" && num < elevators[z].dest) {
+        return true;
+    } else {
+        return false;
     }
 }
 
 function constructMission(btn, num, i) {
-    var mission = {
+    let mission = {
         elev: i,
-        gap: elGaps[i].gap,
         btn: btn,
         floor: num
     }
-    console.log(mission)
-    elevators[i].missions.push(mission);
+    return mission;
 }
 
 function extractMission(i) {
     if (elevators[i].missions.length > 0) {
         let btn = elevators[i].missions[0].btn;
         let num = elevators[i].missions[0].floor;
-        let elev = elevators[i].missions[0].elev;
         elevators[i].missions.shift();
-        send(btn, num, elev);
-    } else {
-        elevators[i].dir = "";
+        send(btn, num, i);
+        console.log(btn, num, i)
+    } else if(openMissions.length > 0) {
+        btn = openMissions[0].btn;
+        num = openMissions[0].floor;
+        openMissions.shift();
+        send(btn, num, i);
     }
 }
 
@@ -156,10 +154,13 @@ function send(btn, num, elev) {
     elevators[elev].busy = true;
     elevators[elev].dir = btn.id;
     console.log(elevators[elev].dir)
+    elevators[elev].dest = num;
     let gap = calcGap(elev, num);
+    playSound(1);
     $(btn).css("backgroundColor", "red");
     $(`.elevator-${elev + 1}`).delay(500).animate({bottom: num * 180}, 2000 * gap, "linear", function(){
         $(btn).css("backgroundColor", "yellow");
+        engineSound.pause();
         btn.disabled = false;
         elevators[elev].floor = num;
         openDoors(elev);
@@ -167,17 +168,104 @@ function send(btn, num, elev) {
 }
 
 function openDoors(elev) {
+    playSound(500);
     elevators[elev].closed = false;
     $(elevators[elev].doors.left).delay(500).animate({left: "-48%"}, 1500);
     $(elevators[elev].doors.right).delay(500).animate({right: "-48%"}, 1500);
     closeDoors(elev, 2100);
 }
 
-function closeDoors(elev, delay, a, btn, num) {
+function closeDoors(elev, delay) {
+    playSound(4000);
     $(elevators[elev].doors.left).delay(delay).animate({left: "0"}, delay / 1.5);
     $(elevators[elev].doors.right).delay(delay).animate({right: "0"}, delay / 1.5, function() {
         elevators[elev].closed = true;
         elevators[elev].busy = false;
         extractMission(elev)
     });
+}
+
+function playSound(a) {
+    if (a == 1) {
+        setTimeout(()=> {
+            engineSound.play();
+        }, 500)
+    } else {
+        setTimeout(()=> {
+            doorSound.play();
+        }, a)
+    }
+    
+}
+
+function creatInnerMission(btn, num, elev) {
+    $(btn).css("backgroundColor", "red");
+    btn.disabled = true;
+    let mission = constructMission(btn, num, elev);
+    if (elevators[elev].missions.length == 0) {
+        elevators[elev].missions.push(mission);
+    } else if (elevators[elev].dir == "up") {
+        if (mission.floor > elevators[elev].floor) {
+            mission.btn.id = "up";
+            let f = false;
+            for (let i = 0; i < elevators[elev].missions.length; i++) {
+                if(mission.floor < elevators[elev].missions[i].floor) {
+                    elevators[elev].missions.splice(i, 0, mission);
+                    f = true;
+                    break;
+                }
+            }
+            if (!f) {
+                for (let i = 0; i < elevators[elev].missions.length; i++) {
+                    if(mission.floor > elevators[elev].missions[i].floor && elevators[elev].missions[i].floor < elevators[elev].floor) {
+                        elevators[elev].missions.splice(i, 0, mission);
+                        f = true;
+                        break;
+                    }
+                }
+            } 
+            if (!f) {
+                elevators[elev].missions.push(mission);
+            }
+        } else {
+            mission.btn.id = "down";
+            console.log("1")
+            let z = false;
+            for (let n = 0; n < elevators[elev].missions.length; n++) {
+                if(mission.floor > elevators[elev].missions[n].floor) {
+                    elevators[elev].missions.splice(n, 0, mission);
+                    z = true;
+                    console.log("2")
+                    break;
+                }
+            }
+            if (!z) {
+                console.log("3")
+                elevators[elev].missions.push(mission);
+            }
+        }
+        
+    } else {
+        // if (mission.floor < elevators[elev].floor) {
+        //     for (let i = 0; i < elevators[elev].missions.length; i++) {
+        //         if(mission.floor < elevators[elev].missions[i].floor) {
+        //             elevators[elev].missions.splice(i, 0, mission);
+        //             break;
+        //         } else if (elevators[elev].missions[i].floor > mission.floor) {
+        //             elevators[elev].missions.splice(i, 0, mission);
+        //             break;
+        //         }
+        //     }
+        // } else {
+        //     for (let i = 0; i < elevators[elev].missions.length; i++) {
+        //         if(mission.floor > elevators[elev].missions[i].floor) {
+        //             elevators[elev].missions.splice(i, 0, mission);
+        //             break;
+        //         } else {
+        //             elevators[elev].missions.push(mission);
+        //             break;
+        //         }
+        //     }
+        // }
+    }
 }

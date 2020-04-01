@@ -141,7 +141,6 @@ function extractMission(i) {
         let num = elevators[i].missions[0].floor;
         elevators[i].missions.shift();
         send(btn, num, i);
-        console.log(btn, num, i)
     } else if(openMissions.length > 0) {
         btn = openMissions[0].btn;
         num = openMissions[0].floor;
@@ -153,7 +152,6 @@ function extractMission(i) {
 function send(btn, num, elev) {
     elevators[elev].busy = true;
     elevators[elev].dir = btn.id;
-    console.log(elevators[elev].dir)
     elevators[elev].dest = num;
     let gap = calcGap(elev, num);
     playSound(1);
@@ -163,8 +161,22 @@ function send(btn, num, elev) {
         engineSound.pause();
         btn.disabled = false;
         elevators[elev].floor = num;
+        checkOpenMissions(elev)
         openDoors(elev);
     });
+}
+
+function checkOpenMissions(elev) {
+    if (openMissions.length != 0) {
+        for (let i = 0; i < openMissions.length; i++) {
+            if (openMissions[i].floor == elevators[elev].floor) {
+                if (elevators[elev].missions.length == 0 || openMissions[i].btn.id == elevators[elev].missions[0].btn.id) {
+                    openMissions[i].btn.style.backgroundColor = "yellow";
+                    openMissions.splice(i, 1);
+                }
+            }    
+        }
+    }
 }
 
 function openDoors(elev) {
@@ -194,8 +206,7 @@ function playSound(a) {
         setTimeout(()=> {
             doorSound.play();
         }, a)
-    }
-    
+    }   
 }
 
 function creatInnerMission(btn, num, elev) {
@@ -206,66 +217,93 @@ function creatInnerMission(btn, num, elev) {
         elevators[elev].missions.push(mission);
     } else if (elevators[elev].dir == "up") {
         if (mission.floor > elevators[elev].floor) {
-            mission.btn.id = "up";
-            let f = false;
-            for (let i = 0; i < elevators[elev].missions.length; i++) {
-                if(mission.floor < elevators[elev].missions[i].floor) {
-                    elevators[elev].missions.splice(i, 0, mission);
-                    f = true;
-                    break;
-                }
-            }
-            if (!f) {
-                for (let i = 0; i < elevators[elev].missions.length; i++) {
-                    if(mission.floor > elevators[elev].missions[i].floor && elevators[elev].missions[i].floor < elevators[elev].floor) {
-                        elevators[elev].missions.splice(i, 0, mission);
-                        f = true;
-                        break;
-                    }
-                }
-            } 
-            if (!f) {
-                elevators[elev].missions.push(mission);
-            }
+            checkUp(mission, elev);
         } else {
-            mission.btn.id = "down";
-            console.log("1")
-            let z = false;
-            for (let n = 0; n < elevators[elev].missions.length; n++) {
-                if(mission.floor > elevators[elev].missions[n].floor) {
-                    elevators[elev].missions.splice(n, 0, mission);
-                    z = true;
-                    console.log("2")
-                    break;
-                }
-            }
-            if (!z) {
-                console.log("3")
-                elevators[elev].missions.push(mission);
+            checkDown(mission, elev);
+        } 
+    } else {
+        if (mission.floor < elevators[elev].floor) {
+            checkDown2(mission, elev);
+        } else {
+            checkUp2(mission, elev);
+        }
+    }
+}
+
+function checkUp(mission, elev) {
+    mission.btn.id = "up";
+    let f = false;
+    for (let i = 0; i < elevators[elev].missions.length; i++) {
+        if(mission.floor < elevators[elev].missions[i].floor) {
+            elevators[elev].missions.splice(i, 0, mission);
+            f = true;
+            break;
+        }
+    }
+    if (!f) {
+        for (let i = 0; i < elevators[elev].missions.length; i++) {
+            if(mission.floor > elevators[elev].missions[i].floor && elevators[elev].missions[i].floor < elevators[elev].floor) {
+                elevators[elev].missions.splice(i, 0, mission);
+                f = true;
+                break;
             }
         }
-        
-    } else {
-        // if (mission.floor < elevators[elev].floor) {
-        //     for (let i = 0; i < elevators[elev].missions.length; i++) {
-        //         if(mission.floor < elevators[elev].missions[i].floor) {
-        //             elevators[elev].missions.splice(i, 0, mission);
-        //             break;
-        //         } else if (elevators[elev].missions[i].floor > mission.floor) {
-        //             elevators[elev].missions.splice(i, 0, mission);
-        //             break;
-        //         }
-        //     }
-        // } else {
-        //     for (let i = 0; i < elevators[elev].missions.length; i++) {
-        //         if(mission.floor > elevators[elev].missions[i].floor) {
-        //             elevators[elev].missions.splice(i, 0, mission);
-        //             break;
-        //         } else {
-        //             elevators[elev].missions.push(mission);
-        //             break;
-        //         }
-        //     }
-        // }
+    } 
+    if (!f) {
+        elevators[elev].missions.push(mission);
+    }
+}
+
+function checkDown(mission, elev) {
+    mission.btn.id = "down";
+    let z = false;
+    for (let n = 0; n < elevators[elev].missions.length; n++) {
+        if(mission.floor > elevators[elev].missions[n].floor) {
+            elevators[elev].missions.splice(n, 0, mission);
+            z = true;
+            break;
+        }
+    }
+    if (!z) {
+        elevators[elev].missions.push(mission);
+    }
+}
+
+function checkDown2 (mission, elev) {
+    mission.btn.id = "down";
+    let f = false;
+    for (let i = 0; i < elevators[elev].missions.length; i++) {
+        if(mission.floor > elevators[elev].missions[i].floor) {
+            elevators[elev].missions.splice(i, 0, mission);
+            f = true;
+            break;
+        }
+    }
+    if (!f) {
+        for (let i = 0; i < elevators[elev].missions.length; i++) {
+            if(mission.floor < elevators[elev].missions[i].floor && elevators[elev].missions[i].floor > elevators[elev].floor) {
+                elevators[elev].missions.splice(i, 0, mission);
+                f = true;
+                break;
+            }
+        }
+    }
+    if (!f) {
+        elevators[elev].missions.push(mission);
+    }
+}
+
+function checkUp2 (mission, elev) {
+    mission.btn.id = "up";
+    let z = false;
+    for (let n = 0; n < elevators[elev].missions.length; n++) {
+        if(mission.floor < elevators[elev].missions[n].floor) {
+            elevators[elev].missions.splice(n, 0, mission);
+            z = true;
+            break;
+        }
+    }
+    if (!z) {
+        elevators[elev].missions.push(mission);
     }
 }
